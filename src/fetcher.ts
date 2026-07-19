@@ -29,18 +29,6 @@ export function validatePublicUrl(url: URL): void {
   }
 }
 
-function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) return Promise.reject(signal.reason);
-  return new Promise((resolve, reject) => {
-    const onAbort = () => reject(signal.reason ?? new Error("Fetch aborted"));
-    signal.addEventListener("abort", onAbort, { once: true });
-    operation.then(
-      (value) => { signal.removeEventListener("abort", onAbort); resolve(value); },
-      (error) => { signal.removeEventListener("abort", onAbort); reject(error); },
-    );
-  });
-}
-
 async function resolvePublicAddress(hostname: string, signal: AbortSignal): Promise<{ address: string; family: 4 | 6 }> {
   const normalized = hostname.replace(/^\[|\]$/g, "").toLowerCase();
   if (normalized === "localhost" || normalized.endsWith(".localhost") || normalized.endsWith(".local")) {
@@ -50,7 +38,20 @@ async function resolvePublicAddress(hostname: string, signal: AbortSignal): Prom
     if (!isPublicAddress(normalized)) throw new Error("Private, reserved, or local IP addresses are not allowed");
     return { address: normalized, family: ipaddr.parse(normalized).kind() === "ipv6" ? 6 : 4 };
   }
-  const answers = await abortable(dns.lookup(normalized, { all: true, verbatim: true }), signal);
+  if (signal.aborted) throw signal.reason;
+  const resolver = new dns.Resolver();
+  const cancel = () => resolver.cancel();
+  signal.addEventListener("abort", cancel, { once: true });
+  let results: PromiseSettledResult<string[]>[];
+  try {
+    results = await Promise.allSettled([resolver.resolve4(normalized), resolver.resolve6(normalized)]);
+  } finally {
+    signal.removeEventListener("abort", cancel);
+  }
+  if (signal.aborted) throw signal.reason;
+  const answers = results.flatMap((result, index) => result.status === "fulfilled"
+    ? result.value.map((address) => ({ address, family: (index === 0 ? 4 : 6) as 4 | 6 }))
+    : []);
   if (!answers.length || answers.some((answer) => !isPublicAddress(answer.address))) {
     throw new Error("Host resolves to a private, reserved, or local address");
   }

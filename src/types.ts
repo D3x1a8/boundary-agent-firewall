@@ -22,7 +22,7 @@ export interface Finding {
 }
 
 export interface ScanReport {
-  schemaVersion: "boundary/1";
+  schemaVersion: "boundary/2";
   scanId: string;
   scannedAt: string;
   source: { kind: "text" | "url"; value: string };

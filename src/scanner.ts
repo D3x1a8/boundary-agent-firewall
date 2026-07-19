@@ -144,7 +144,7 @@ export function scanText(text: string, source: { kind: "text" | "url"; value: st
     : encodeUntrustedContent(normalized, sha256);
 
   return {
-    schemaVersion: "boundary/1", scanId: randomUUID(), scannedAt: new Date().toISOString(), source,
+    schemaVersion: "boundary/2", scanId: randomUUID(), scannedAt: new Date().toISOString(), source,
     content: { bytes: Buffer.byteLength(normalized, "utf8"), characters: normalized.length, sha256 },
     verdict, riskScore, findings, contextEnvelope,
     limitations: [

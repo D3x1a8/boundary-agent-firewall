@@ -9,6 +9,10 @@ It returns machine-readable evidence plus a SHA-256 fingerprint. The full API
 is metered at $0.01 per request through x402/USDC on Base; a small text-only
 route is free.
 
+The current response contract is `schemaVersion: "boundary/2"`. Version 2
+encodes non-blocked `contextEnvelope` content as Base64 so input cannot forge
+the envelope delimiters.
+
 ## Quick start
 
 ```bash
