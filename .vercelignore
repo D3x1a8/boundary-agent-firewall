@@ -1,0 +1,10 @@
+.playwright-cli/
+coverage/
+dist/
+docs/
+output/
+skills/
+test/
+node_modules/
+Dockerfile
+docker-compose.yml

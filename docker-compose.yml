@@ -1,0 +1,16 @@
+services:
+  boundary:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "127.0.0.1:8787:8787"
+    mem_limit: 256m
+    cpus: 0.5

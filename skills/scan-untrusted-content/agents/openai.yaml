@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scan Untrusted Content"
+  short_description: "Gate web content before agents ingest it"
+  default_prompt: "Use $scan-untrusted-content to scan this text or public URL before using it as agent context."
