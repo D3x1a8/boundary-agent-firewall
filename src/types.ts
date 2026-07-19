@@ -30,7 +30,7 @@ export interface ScanReport {
   verdict: Verdict;
   riskScore: number;
   findings: Finding[];
-  safeEnvelope: string;
+  contextEnvelope: string;
   limitations: string[];
 }
 

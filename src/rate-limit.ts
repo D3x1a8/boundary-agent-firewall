@@ -2,10 +2,10 @@ import type { RequestHandler } from "express";
 
 const windows = new Map<string, number[]>();
 
-export function rateLimit(max: number, windowMs: number): RequestHandler {
+export function rateLimit(max: number, windowMs: number, scope = "default"): RequestHandler {
   return (req, res, next) => {
     const now = Date.now();
-    const key = `${req.ip}:${req.path}`;
+    const key = `${scope}:${req.ip}:${req.path}`;
     const recent = (windows.get(key) ?? []).filter((time) => now - time < windowMs);
     recent.push(now);
     windows.set(key, recent);

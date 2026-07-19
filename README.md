@@ -35,7 +35,7 @@ curl -sS http://localhost:8787/api/v1/scan \
 
 ## Security boundaries
 
-- URL fetches allow only HTTP(S), resolve all DNS answers, reject private and reserved ranges, pin the selected public IP, revalidate redirects, limit response size, and accept only textual content.
+- URL fetches allow only HTTP(S) on standard ports, resolve all DNS answers, reject private and reserved ranges, pin the selected public IP, revalidate redirects, limit response size, and accept only textual content.
 - The deployable service contains only the public payee address, never the wallet key.
 - `allow` means no configured deterministic signal fired. It is not proof of safety; independent tool policy and human approval remain necessary.
 

@@ -1,42 +1,31 @@
 import dns from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
-import net from "node:net";
 import { convert } from "html-to-text";
+import ipaddr from "ipaddr.js";
 import type { FetchedContent } from "./types.js";
 
 const MAX_BYTES = 256 * 1024;
 const MAX_REDIRECTS = 3;
 const ALLOWED_TYPES = ["text/html", "text/plain", "text/markdown", "application/json", "application/xml", "text/xml"];
 
-function isPrivateIpv4(address: string): boolean {
-  const parts = address.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-  const [a, b, c] = parts;
-  return (
-    a === 0 || a === 10 || a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    (a === 192 && b === 0 && (c === 0 || c === 2)) ||
-    (a === 198 && b === 51 && c === 100) ||
-    (a === 203 && b === 0 && c === 113) ||
-    a >= 224
-  );
+export function isPublicAddress(address: string): boolean {
+  try {
+    let parsed = ipaddr.parse(address);
+    if (parsed.kind() === "ipv6") {
+      const ipv6 = parsed as ipaddr.IPv6;
+      if (ipv6.isIPv4MappedAddress()) parsed = ipv6.toIPv4Address();
+    }
+    return parsed.range() === "unicast";
+  } catch { return false; }
 }
 
-export function isPublicAddress(address: string): boolean {
-  if (net.isIPv4(address)) return !isPrivateIpv4(address);
-  if (!net.isIPv6(address)) return false;
-  const value = address.toLowerCase();
-  if (value.startsWith("::ffff:")) return isPublicAddress(value.slice(7));
-  return !(
-    value === "::" || value === "::1" || value.startsWith("fc") || value.startsWith("fd") ||
-    value.startsWith("fe8") || value.startsWith("fe9") || value.startsWith("fea") || value.startsWith("feb") ||
-    value.startsWith("2001:db8")
-  );
+export function validatePublicUrl(url: URL): void {
+  if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only HTTP and HTTPS URLs are allowed");
+  if (url.username || url.password) throw new Error("URLs with embedded credentials are not allowed");
+  if (url.port && !((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443"))) {
+    throw new Error("Only standard HTTP and HTTPS ports are allowed");
+  }
 }
 
 async function resolvePublicAddress(hostname: string): Promise<{ address: string; family: 4 | 6 }> {
@@ -44,9 +33,9 @@ async function resolvePublicAddress(hostname: string): Promise<{ address: string
   if (normalized === "localhost" || normalized.endsWith(".localhost") || normalized.endsWith(".local")) {
     throw new Error("Private or local hosts are not allowed");
   }
-  if (net.isIP(normalized)) {
+  if (ipaddr.isValid(normalized)) {
     if (!isPublicAddress(normalized)) throw new Error("Private, reserved, or local IP addresses are not allowed");
-    return { address: normalized, family: net.isIPv6(normalized) ? 6 : 4 };
+    return { address: normalized, family: ipaddr.parse(normalized).kind() === "ipv6" ? 6 : 4 };
   }
   const answers = await dns.lookup(normalized, { all: true, verbatim: true });
   if (!answers.length || answers.some((answer) => !isPublicAddress(answer.address))) {
@@ -77,6 +66,11 @@ async function requestPinned(url: URL): Promise<RawResponse> {
       },
       timeout: 8_000,
     }, (response) => {
+      const declaredLength = Number(response.headers["content-length"] || 0);
+      if (declaredLength > MAX_BYTES) {
+        request.destroy(new Error(`Response exceeded ${MAX_BYTES} bytes`));
+        return;
+      }
       const chunks: Buffer[] = [];
       let size = 0;
       response.on("data", (chunk: Buffer) => {
@@ -109,8 +103,7 @@ function htmlToText(html: string): string {
 export async function fetchPublicText(input: string): Promise<FetchedContent> {
   let current: URL;
   try { current = new URL(input); } catch { throw new Error("URL is invalid"); }
-  if (!["http:", "https:"].includes(current.protocol)) throw new Error("Only HTTP and HTTPS URLs are allowed");
-  if (current.username || current.password) throw new Error("URLs with embedded credentials are not allowed");
+  validatePublicUrl(current);
 
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
     const response = await requestPinned(current);
@@ -119,7 +112,7 @@ export async function fetchPublicText(input: string): Promise<FetchedContent> {
       if (!location) throw new Error("Redirect response did not include a location");
       if (redirect === MAX_REDIRECTS) throw new Error("Too many redirects");
       current = new URL(location, current);
-      if (!["http:", "https:"].includes(current.protocol)) throw new Error("Redirected to an unsupported protocol");
+      validatePublicUrl(current);
       continue;
     }
     if (response.status < 200 || response.status >= 300) throw new Error(`Upstream returned HTTP ${response.status}`);

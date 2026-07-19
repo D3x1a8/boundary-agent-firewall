@@ -141,16 +141,16 @@ export function scanText(text: string, source: { kind: "text" | "url"; value: st
   }
 
   const riskScore = Math.min(100, rawScore);
-  const verdict = forcedBlock || riskScore >= 70 ? "block" : riskScore >= 25 ? "quarantine" : "allow";
+  const verdict = forcedBlock || riskScore >= 70 ? "block" : findings.length > 0 ? "quarantine" : "allow";
   const sha256 = createHash("sha256").update(normalized, "utf8").digest("hex");
-  const safeEnvelope = verdict === "block"
+  const contextEnvelope = verdict === "block"
     ? `[BOUNDARY QUARANTINED sha256=${sha256}: content omitted]`
     : `<untrusted_content sha256="${sha256}">\n${stripBoundaryTokens(normalized)}\n</untrusted_content>`;
 
   return {
     schemaVersion: "boundary/1", scanId: randomUUID(), scannedAt: new Date().toISOString(), source,
     content: { bytes: Buffer.byteLength(normalized, "utf8"), characters: normalized.length, sha256 },
-    verdict, riskScore, findings, safeEnvelope,
+    verdict, riskScore, findings, contextEnvelope,
     limitations: [
       "Deterministic detection reduces risk but cannot prove content is safe.",
       "Keep privileged tool execution behind independent policy checks and human approval.",

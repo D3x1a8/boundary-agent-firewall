@@ -45,10 +45,11 @@ export function createApp() {
     } catch (error) { next(error); }
   });
 
+  app.use("/api/v1/scan/paid", rateLimit(300, 60 * 60 * 1000, "challenge"));
   const x402 = createPaymentMiddleware(payment);
   if (x402) app.use(x402);
 
-  app.post("/api/v1/scan/paid", rateLimit(120, 60 * 60 * 1000), async (req, res, next) => {
+  app.post("/api/v1/scan/paid", rateLimit(120, 60 * 60 * 1000, "paid"), async (req, res, next) => {
     try {
       if (payment.mode === "disabled" && process.env.NODE_ENV === "production") {
         res.status(503).json({ error: "payments_not_configured" });
