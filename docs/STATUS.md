@@ -10,7 +10,7 @@ Verified 2026-07-20:
 - Linux: the hardened release is the active `boundary.service` on `aws-bot`, listening on port 8787 under a dedicated user.
 - Isolation: systemd security exposure score is 2.8 (`OK`); memory is capped at 256 MB and CPU at 50%.
 - Monitoring: a six-hour Codex heartbeat checks health and material official capability updates without mutating production.
-- Replication: one read-only child auditor completed an independent review with no wallet, funding, or deployment access. Its initial findings were remediated and sent back for verification.
+- Replication: one read-only child auditor completed an independent review with no wallet, funding, or deployment access. Its initial findings were remediated, and its correction pass independently confirmed the envelope-integrity and bounded-rate-state fixes.
 
 ## Activation blockers
 
