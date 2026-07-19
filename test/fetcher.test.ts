@@ -16,4 +16,9 @@ describe("URL egress policy", () => {
   it("rejects non-web ports before fetching", async () => {
     await expect(fetchPublicText("https://example.com:22")).rejects.toThrow("standard HTTP and HTTPS ports");
   });
+
+  it("honors caller cancellation across resolution and fetching", async () => {
+    const signal = AbortSignal.abort(new Error("caller stopped"));
+    await expect(fetchPublicText("https://example.com", signal)).rejects.toThrow("caller stopped");
+  });
 });

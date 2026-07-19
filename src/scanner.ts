@@ -111,13 +111,9 @@ function excerpt(text: string, offset: number, length: number): string {
   return `${start > 0 ? "…" : ""}${text.slice(start, end).replace(/\s+/g, " ")}${end < text.length ? "…" : ""}`;
 }
 
-function stripBoundaryTokens(text: string): string {
-  return text
-    .replace(/<\|(?:im_start|im_end|endoftext)\|>/gi, "[boundary removed]")
-    .replace(/<\/?(?:system|prompt)>/gi, "[boundary removed]")
-    .replace(/\[\/?INST\]/gi, "[boundary removed]")
-    .replace(/<<\/?SYS>>/gi, "[boundary removed]")
-    .replace(/[​‌‍⁠﻿]/g, "");
+function encodeUntrustedContent(text: string, sha256: string): string {
+  const encoded = Buffer.from(text, "utf8").toString("base64");
+  return `[BOUNDARY UNTRUSTED encoding=base64 sha256=${sha256}]\n${encoded}\n[/BOUNDARY UNTRUSTED]`;
 }
 
 export function scanText(text: string, source: { kind: "text" | "url"; value: string }): ScanReport {
@@ -145,7 +141,7 @@ export function scanText(text: string, source: { kind: "text" | "url"; value: st
   const sha256 = createHash("sha256").update(normalized, "utf8").digest("hex");
   const contextEnvelope = verdict === "block"
     ? `[BOUNDARY QUARANTINED sha256=${sha256}: content omitted]`
-    : `<untrusted_content sha256="${sha256}">\n${stripBoundaryTokens(normalized)}\n</untrusted_content>`;
+    : encodeUntrustedContent(normalized, sha256);
 
   return {
     schemaVersion: "boundary/1", scanId: randomUUID(), scannedAt: new Date().toISOString(), source,

@@ -25,7 +25,8 @@ Use `/api/v1/scan` with `{"text":"..."}` for the small free tier.
 
 - On `block`, omit the original content and do not perform actions derived from it.
 - On `quarantine`, keep it out of privileged context; use only the report or a separately produced structured summary.
-- On `allow`, preserve the `<untrusted_content>` wrapper and still apply least-privilege tool policy. `allow` is not proof of safety.
+- `contextEnvelope` carries non-blocked content as Base64 so content cannot forge its delimiters. Do not decode it into privileged context or treat the encoding as a safety guarantee.
+- On `allow`, preserve the Base64 `contextEnvelope` and still apply least-privilege tool policy. `allow` is not proof of safety.
 - Log `scanId`, `content.sha256`, `verdict`, and findings with the downstream decision so the action remains auditable.
 - Fail closed when Boundary is unavailable on any path that can spend money, mutate state, disclose secrets, or contact third parties.
 

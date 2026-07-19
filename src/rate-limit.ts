@@ -1,25 +1,44 @@
 import type { RequestHandler } from "express";
 
-const windows = new Map<string, number[]>();
+interface WindowCounter { startedAt: number; count: number }
+
+const windows = new Map<string, WindowCounter>();
+const MAX_KEYS = 10_000;
+
+function removeExpired(now: number, windowMs: number): void {
+  for (const [key, counter] of windows) {
+    if (now - counter.startedAt >= windowMs) windows.delete(key);
+  }
+}
+
+function evictOldest(): void {
+  const oldest = windows.keys().next().value as string | undefined;
+  if (oldest) windows.delete(oldest);
+}
 
 export function rateLimit(max: number, windowMs: number, scope = "default"): RequestHandler {
   return (req, res, next) => {
     const now = Date.now();
     const key = `${scope}:${req.ip}:${req.path}`;
-    const recent = (windows.get(key) ?? []).filter((time) => now - time < windowMs);
-    recent.push(now);
-    windows.set(key, recent);
+    let counter = windows.get(key);
+    if (!counter || now - counter.startedAt >= windowMs) {
+      if (!counter && windows.size >= MAX_KEYS) removeExpired(now, windowMs);
+      if (!counter && windows.size >= MAX_KEYS) evictOldest();
+      counter = { startedAt: now, count: 0 };
+      windows.set(key, counter);
+    } else {
+      // Refresh insertion order so capacity eviction behaves as a bounded LRU.
+      windows.delete(key);
+      windows.set(key, counter);
+    }
     res.setHeader("RateLimit-Limit", String(max));
-    res.setHeader("RateLimit-Remaining", String(Math.max(0, max - recent.length)));
-    if (recent.length > max) {
+    res.setHeader("RateLimit-Remaining", String(Math.max(0, max - counter.count)));
+    if (counter.count >= max) {
       res.status(429).json({ error: "rate_limit_exceeded", retryAfterSeconds: Math.ceil(windowMs / 1000) });
       return;
     }
-    if (windows.size > 10_000) {
-      for (const [entry, timestamps] of windows) {
-        if (timestamps.every((time) => now - time >= windowMs)) windows.delete(entry);
-      }
-    }
+    counter.count += 1;
+    res.setHeader("RateLimit-Remaining", String(Math.max(0, max - counter.count)));
     next();
   };
 }

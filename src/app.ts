@@ -51,7 +51,7 @@ export function createApp() {
 
   app.post("/api/v1/scan/paid", rateLimit(120, 60 * 60 * 1000, "paid"), async (req, res, next) => {
     try {
-      if (payment.mode === "disabled" && process.env.NODE_ENV === "production") {
+      if (payment.mode === "disabled") {
         res.status(503).json({ error: "payments_not_configured" });
         return;
       }
@@ -65,7 +65,17 @@ export function createApp() {
         return;
       }
       const url = String(body?.url);
-      const fetched = await fetchPublicText(url);
+      const controller = new AbortController();
+      const abortFetch = () => controller.abort(new Error("Client disconnected"));
+      req.once("aborted", abortFetch);
+      res.once("close", abortFetch);
+      let fetched;
+      try {
+        fetched = await fetchPublicText(url, controller.signal);
+      } finally {
+        req.off("aborted", abortFetch);
+        res.off("close", abortFetch);
+      }
       res.json({
         ...scanText(fetched.text, { kind: "url", value: fetched.finalUrl }),
         fetch: { contentType: fetched.contentType, bytes: fetched.bytes },
