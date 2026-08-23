@@ -17,14 +17,14 @@
   },
   "dependencies": {
     "@coinbase/x402": "^2.1.0",
-    "@x402/core": "^2.19.0",
-    "@x402/evm": "^2.19.0",
-    "@x402/express": "^2.19.0",
+    "@x402/core": "^2.23.0",
+    "@x402/evm": "^2.23.0",
+    "@x402/express": "^2.23.0",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
-    "html-to-text": "^10.0.0",
-    "ipaddr.js": "^2.4.0",
-    "viem": "^2.55.4"
+    "html-to-text": "^10.0.1",
+    "ipaddr.js": "^2.5.0",
+    "viem": "^2.55.19"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
